@@ -5,7 +5,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.get("/", (req, res) => {
-  res.send("Multi-Token Bot Render üzerinde 400ms hızla aktif!");
+  res.send("Multi-Token Bot Render üzerinde aktif!");
 });
 
 app.listen(PORT, () => {
@@ -27,9 +27,9 @@ let tokenIndex = 0;
 if (rawTokens.length === 0 || !message) {
     console.error("HATA: Render panelinde TOKENS veya MESSAGE bulunamadı!");
 } else {
-    console.log(`${rawTokens.length} adet token yüklendi. 400ms hızla başlıyor...`);
-    // Hız 400ms olarak güncellendi
-    setInterval(handleCycle, 400);
+    console.log(`${rawTokens.length} adet token yüklendi. İşlem 500ms hızında başlıyor...`);
+    // Hız 500ms olarak güncellendi
+    setInterval(handleCycle, 500);
 }
 
 async function handleCycle() {
@@ -48,12 +48,13 @@ async function handleCycle() {
       }
     });
     
-    console.log(`✅ Gönderildi: Kanal ${currentChannelId} | Token: ...${currentToken.slice(-4)}`);
+    console.log(`✅ Başarılı: Kanal ${currentChannelId} | Token: ...${currentToken.slice(-4)}`);
   } catch (err) {
-    // 429 hatası çok sık gelirse hızı biraz düşürmen gerekebilir
-    console.error(`❌ Hata: ${err.response?.status || "Bağlantı"} (Token Index: ${tokenIndex})`);
+    // 429 hatası "Rate Limit" demektir, konsolda takip edebilirsin
+    console.error(`❌ Hata: ${err.response?.status || "Bağlantı"} (Token: ${tokenIndex})`);
   }
 
+  // Döngüsel geçiş
   currentIndex = (currentIndex + 1) % channels.length;
   tokenIndex = (tokenIndex + 1) % rawTokens.length;
 }
