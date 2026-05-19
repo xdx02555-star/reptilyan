@@ -57,10 +57,8 @@ class MySelfBot(discord.Client):
                     sunucu_id = message.guild.id if message.guild else "@me"
                     mesaj_linki = f"https://discord.com/channels/{sunucu_id}/{message.channel.id}/{message.id}"
                     
-                    # Bildirim metni başına @everyone etiketi eklendi
                     bildirim_metni = (
-                        f"@everyone\n"
-                        f" :eye: **TÜREME VELET MESAJ GÖNDERDİ XD**\n"
+                        f"**Hedef Kullanıcı Yeni Konuşma Başlattı!**\n"
                         f"**Kullanıcı:** {message.author.name} (`{message.author.id}`)\n"
                         f"**Konum:** {message.guild.name if message.guild else 'Özel Mesaj'} / {message.channel}\n"
                         f"**Mesaj Bağlantısı:** {mesaj_linki}\n"
@@ -69,7 +67,7 @@ class MySelfBot(discord.Client):
                     
                     await bildirim_kanali.send(bildirim_metni)
                     self.son_bildirim_zamanlari[kullanici_id] = simdiki_zaman
-                    print(f"✅ [{message.author.name}] için @everyone etiketli bildirim kanala gönderildi.")
+                    print(f"✅ [{message.author.name}] için bildirim kanala gönderildi.")
             else:
                 kalan_sure = int(self.cooldown_suresi - (simdiki_zaman - son_zaman))
                 print(f"⏳ [{message.author.name}] yazıyor ancak cooldown aktif. Kalan: {kalan_sure} sn.")
