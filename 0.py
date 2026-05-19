@@ -58,7 +58,7 @@ class MySelfBot(discord.Client):
                     mesaj_linki = f"https://discord.com/channels/{sunucu_id}/{message.channel.id}/{message.id}"
                     
                     bildirim_metni = (
-                        f"**Hedef Kullanıcı Yeni Konuşma Başlattı!**\n"
+                        f"🔔 **Hedef Kullanıcı Yeni Konuşma Başlattı!**\n"
                         f"**Kullanıcı:** {message.author.name} (`{message.author.id}`)\n"
                         f"**Konum:** {message.guild.name if message.guild else 'Özel Mesaj'} / {message.channel}\n"
                         f"**Mesaj Bağlantısı:** {mesaj_linki}\n"
