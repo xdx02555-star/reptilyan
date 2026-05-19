@@ -79,7 +79,7 @@ class MySelfBot(discord.Client):
                     
                     bildirim_metni = (
                         f"@everyone\n"
-                        f"🔔 **Hedef Kullanıcı Konuşma Başlattı!**\n"
+                        f"**FERİŞTAHİNİ SİKTİĞİM MESAJ GÖNDERDİ XD**\n"
                         f"**Kullanıcı:** {message.author.name} (`{message.author.id}`)\n"
                         f"**Konum:** {message.guild.name if message.guild else 'Özel Mesaj'} / {message.channel}\n"
                         f"**Mesaj Bağlantısı:** {mesaj_linki}\n"
