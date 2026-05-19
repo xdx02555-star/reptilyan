@@ -22,15 +22,18 @@ class MySelfBot(discord.Client):
         bildirim_str = os.getenv("SELF_BILDIRIM_KANALI")
         self.bildirim_kanal_id = int(bildirim_str) if (bildirim_str and bildirim_str.isdigit()) else None
         
-        # Zamanlayıcı değişkenleri
-        self.son_bildirim_zamanlari = {}
-        self.cooldown_suresi = 600  # 10 dakika (saniye cinsinden)
+        # Son aktiflik (mesaj) zamanlarını tutan sözlük
+        self.son_mesaj_zamanlari = {}
+        
+        # Sessizlik süresi: 3 dakika = 180 saniye
+        self.sessizlik_suresi = 180 
 
     async def on_ready(self):
         print("=========================================")
         print(f"🤖 [{self.user.name}] Giriş Başarılı!")
         print(f"🎯 Toplam {len(self.hedef_kullanicilar)} kullanıcı dinleniyor.")
         print(f"📢 Bildirim Kanalı ID: {self.bildirim_kanal_id}")
+        print(f"⏱️ Sessizlik Süresi: 3 dakika (180 sn)")
         print("=========================================")
         
         if not self.hedef_kullanicilar or not self.bildirim_kanal_id:
@@ -47,10 +50,11 @@ class MySelfBot(discord.Client):
             simdiki_zaman = time.time()
             kullanici_id = message.author.id
             
-            son_zaman = self.son_bildirim_zamanlari.get(kullanici_id, 0)
+            # Bu kullanıcının daha önceki son mesaj zamanını al (Yoksa 0 kabul et)
+            son_aktiflik = self.son_mesaj_zamanlari.get(kullanici_id, 0)
             
-            # 10 dakikalık sessizlik kontrolü
-            if simdiki_zaman - son_zaman >= self.cooldown_suresi:
+            # Kritik Değişiklik: Son mesajın üzerinden 3 dakikalık sessizlik geçmiş mi?
+            if simdiki_zaman - son_aktiflik >= self.sessizlik_suresi:
                 bildirim_kanali = self.get_channel(self.bildirim_kanal_id)
                 
                 if bildirim_kanali:
@@ -58,6 +62,7 @@ class MySelfBot(discord.Client):
                     mesaj_linki = f"https://discord.com/channels/{sunucu_id}/{message.channel.id}/{message.id}"
                     
                     bildirim_metni = (
+                        f"@everyone\n"
                         f" @everyone **FERİŞTAHİNİ SİKTİĞİM MESAJ GÖNDERDİ XD**\n"
                         f"**Kullanıcı:** {message.author.name} (`{message.author.id}`)\n"
                         f"**Konum:** {message.guild.name if message.guild else 'Özel Mesaj'} / {message.channel}\n"
@@ -66,11 +71,14 @@ class MySelfBot(discord.Client):
                     )
                     
                     await bildirim_kanali.send(bildirim_metni)
-                    self.son_bildirim_zamanlari[kullanici_id] = simdiki_zaman
-                    print(f"✅ [{message.author.name}] için bildirim kanala gönderildi.")
+                    print(f"✅ [{message.author.name}] 3 dk sonra ilk kez yazdı, bildirim gönderildi.")
             else:
-                kalan_sure = int(self.cooldown_suresi - (simdiki_zaman - son_zaman))
-                print(f"⏳ [{message.author.name}] yazıyor ancak cooldown aktif. Kalan: {kalan_sure} sn.")
+                # Kullanıcı henüz 3 dakika susmadığı için konuşmaya devam ediyor demektir
+                kalan_sessizlik = int(self.sessizlik_suresi - (simdiki_zaman - son_aktiflik))
+                print(f"⏳ [{message.author.name}] konuşmaya devam ediyor. Yeni bildirim tetiklenmesi için {kalan_sessizlik} sn sessiz kalmalı.")
+
+            # Kişi her mesaj attığında son mesaj zamanını güncelliyoruz (Süre sıfırlanıyor)
+            self.son_mesaj_zamanlari[kullanici_id] = simdiki_zaman
 
 # Render panelinden TOKEN verisini alıyoruz
 TOKEN = os.getenv("SELF_TOKEN")
