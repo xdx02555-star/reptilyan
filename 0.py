@@ -21,6 +21,8 @@ threading.Thread(target=run_dummy_server, daemon=True).start()
 # =====================================================================
 class MySelfBot(discord.Client):
     def __init__(self, *args, **kwargs):
+        # Kütüphanenin sunucuları ve üyeleri hafızada tam tutması için ayarlar
+        kwargs["chunk_guilds_at_startup"] = True
         super().__init__(*args, **kwargs)
         
         # Render panelinden TARGET_ID verisini alıyoruz
@@ -38,25 +40,25 @@ class MySelfBot(discord.Client):
         
         # Kullanıcıların son mesaj zamanını tutar
         self.son_mesaj_zamanlari = {}
-        # Kullanıcının şu an aktif bir konuşma içinde olup olmadığını tutar (True/False)
+        # Kullanıcının şu an aktif bir konuşma içinde olup olmadığını tutar
         self.aktif_konusmada_mi = {}
         
-        # Konuşmanın bittiğini anlamak için gereken sessizlik süresi: 3 dakika (180 saniye)
+        # Sessizlik kriteri: 3 dakika = 180 saniye
         self.sessizlik_suresi = 180 
 
     async def on_ready(self):
         print("=========================================")
-        print(f"🤖 [{self.user.name}] Giriş Başarılı!")
-        print(f"🎯 Toplam {len(self.hedef_kullanicilar)} kullanıcı dinleniyor.")
+        print(f"🤖 [{self.user.name}] Giriş Başarılı ve Önbellek Hazır!")
+        print(f"🎯 Takip Edilen Kullanıcılar: {self.hedef_kullanicilar}")
         print(f"📢 Bildirim Kanalı ID: {self.bildirim_kanal_id}")
-        print(f"⏱️ Sessizlik Kriteri: {self.sessizlik_suresi} sn (3 Dakika)")
         print("=========================================")
         
         if not self.hedef_kullanicilar or not self.bildirim_kanal_id:
             print("❌ HATA: TARGET_ID veya SELF_BILDIRIM_KANALI eksik ya da hatalı!")
             sys.exit(1)
 
-    async def on_message(self, message):
+    # Ortak Kontrol Fonksiyonu (Hem yeni mesaj hem düzenleme için tek merkez)
+    async def kontrol_et_ve_bildir(self, message):
         # Kendi mesajlarımızı eliyoruz
         if message.author.id == self.user.id:
             return
@@ -66,20 +68,21 @@ class MySelfBot(discord.Client):
             simdiki_zaman = time.time()
             kullanici_id = message.author.id
             
-            # Kullanıcının geçmiş verilerini sözlükten çekiyoruz (Yoksa varsayılan atıyoruz)
             son_aktiflik = self.son_mesaj_zamanlari.get(kullanici_id, 0)
             konusma_durumu = self.aktif_konusmada_mi.get(kullanici_id, False)
             
-            # Önce kontrol et: Kullanıcı en son mesajından sonra 3 dakika boyunca sustu mu?
-            # Eğer 3 dakika sustuysa, önceki konuşma bitmiştir. Durumu sıfırla.
+            # Eğer 3 dakika sustuysa konuşma bitmiştir, durumu sıfırla
             if simdiki_zaman - son_aktiflik >= self.sessizlik_suresi:
                 konusma_durumu = False
                 self.aktif_konusmada_mi[kullanici_id] = False
 
-            # 💡 ANA MANTIK ALANI:
-            # Eğer kullanıcı şu an aktif bir konuşmada DEĞİLSE (Yeni konuşma başlatıyorsa)
+            # Yeni konuşma başlangıcı durumu
             if konusma_durumu is False:
-                bildirim_kanali = self.get_channel(self.bildirim_kanal_id)
+                # Kanalı API üzerinden tazeleyerek çek (Önbellek sorununu çözer)
+                try:
+                    bildirim_kanali = self.get_channel(self.bildirim_kanal_id) or await self.fetch_channel(self.bildirim_kanal_id)
+                except Exception:
+                    bildirim_kanali = None
                 
                 if bildirim_kanali:
                     sunucu_id = message.guild.id if message.guild else "@me"
@@ -87,7 +90,7 @@ class MySelfBot(discord.Client):
                     
                     bildirim_metni = (
                         f"@everyone\n"
-                        f"🔔 **Hedef Kullanıcı Yeni Bir Konuşma Başlattı!**\n"
+                        f"**MESAJ GÖNDERİ TÜREME OROSPU EVLADI XD**\n"
                         f"**Kullanıcı:** {message.author.name} (`{message.author.id}`)\n"
                         f"**Konum:** {message.guild.name if message.guild else 'Özel Mesaj'} / {message.channel}\n"
                         f"**Mesaj Bağlantısı:** {mesaj_linki}\n"
@@ -95,18 +98,22 @@ class MySelfBot(discord.Client):
                     )
                     
                     await bildirim_kanali.send(bildirim_metni)
-                    print(f"✅ [{message.author.name}] yeni konuşma başlattı. İlk bildirim gönderildi.")
+                    print(f"✅ [{message.author.name}] için bildirim başarıyla kanala iletildi.")
                 
-                # Kullanıcı artık konuşma başlattığı için durumunu TRUE yapıyoruz.
-                # Konuşması bitene kadar (3 dk susana kadar) bir daha bildirim gitmeyecek.
                 self.aktif_konusmada_mi[kullanici_id] = True
             else:
-                # Kullanıcı zaten aktif bir konuşmanın içinde yazmaya devam ediyor.
-                # Konuşma devam ettiği için süre sınırlaması olmadan sessizce loglanır, bildirim atılmaz.
-                print(f"💬 [{message.author.name}] konuşmaya devam ediyor. (Bildirim gönderilmedi)")
+                print(f"💬 [{message.author.name}] konuşmaya devam ediyor, sessizce loglandı.")
 
-            # Kullanıcı her mesaj attığında son hareket saatini güncelliyoruz
+            # Kronometreyi her hareketle güncelle
             self.son_mesaj_zamanlari[kullanici_id] = simdiki_zaman
+
+    # TETİKLEYİCİ 1: Yeni Mesaj Geldiğinde
+    async def on_message(self, message):
+        await self.kontrol_et_ve_bildir(message)
+
+    # TETİKLEYİCİ 2: Mesaj Düzenlendiğinde (Gözden kaçmayı önler)
+    async def on_message_edit(self, before, after):
+        await self.kontrol_et_ve_bildir(after)
 
 # Render panelinden TOKEN verisini alıyoruz
 TOKEN = os.getenv("SELF_TOKEN")
